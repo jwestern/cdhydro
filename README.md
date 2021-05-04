@@ -12,8 +12,8 @@ Target studies:
 
     i) irrotational case: irrotational test-fluid "star" on a Kerr-like background metric.
 
-        - non-compact star, so don't have to deal with vacuum regions
-        - spongy buffer zone plus periodic boundary conditions
+    - non-compact star, so don't have to deal with vacuum regions
+    - spongy buffer zone plus periodic boundary conditions
 
     ii) rotational case: destabilizing shear flow on flat spacetime.
 
