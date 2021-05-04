@@ -2,7 +2,7 @@
 
 May 4, 2021:
 
-A 2+1D relativistic barotropic hydrodynamics code on curved spacetime, implementing a constraint-damping scheme in the Hamiltonian formulation to conserve circulation.
+A 2+1D relativistic barotropic hydrodynamics code on curved spacetime, implementing a constraint-damping scheme in the Hamiltonian formulation to conserve circulation. Design goals do not include shock-capturing capability.
 
 Written in Rust. Under development.
 
