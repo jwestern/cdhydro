@@ -1,3 +1,5 @@
+use ndarray::prelude::*;
+
 fn main() {
-    println!("Nothing here yet");
+    let _zeros = Array::from_elem((2,2),0.);
 }
