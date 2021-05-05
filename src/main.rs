@@ -3,7 +3,16 @@ use ndarray_npy::{read_npy, write_npy, NpzWriter, NpzReader};
 use std::fs::File;
 
 fn main() {
-    let zeros = Array::from_elem((2,2),0.);
+//    let mut x = Array::linspace(-1.0, 1.0, 5);
+//    for (i, x) in x.iter().enumerate() {
+//        println!("{:?}, {:?}", i, x);
+//    }
+    let dx = 0.1;
+    let yy = Array::from_shape_fn((4, 4), |(i,j)| (i as f64) * dx - 3.0 * dx / 2.0);
+    let xx = Array::from_shape_fn((4, 4), |(i,j)| (i as f64) * dx - 3.0 * dx / 2.0);
+    println!("{:?}", xx);
+    println!("{:?}", yy);
+
 }
 
 #[cfg(test)]
@@ -28,7 +37,10 @@ mod tests {
 
     #[test]
     fn test_ndarray_npy_read_write() {
-        let zeros = Array::from_elem((2,2),0.);
+        let zeros = Array::from_elem((5,5),0.);
+        for i in zeros.axis_iter(Axis(0)) {
+            println!("{}",i);
+        }
         write_npy("test.npy", &zeros);
         let recover: Array2<f64> = read_npy("test.npy").unwrap();
         assert_eq!(zeros, recover);
