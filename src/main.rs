@@ -1,16 +1,84 @@
 use ndarray::prelude::*;
+use ndarray::stack;
 use ndarray_npy::{read_npy, write_npy, NpzWriter, NpzReader};
 use std::fs::File;
 
+fn index_periodic(i: isize, N: isize) -> usize {
+    if i > N-1 {
+        (i - N) as usize
+    } else if i < 0 {
+        (N + i) as usize
+    } else {
+        i as usize
+    }
+}
+
+fn fpx_iph(f: Array2<f64>, N: isize) -> Array2<f64> {
+    let mut result = Array2::<f64>::zeros((N as usize,N as usize).f());
+    for yi in 0..f.shape()[0] {
+        for xi in 0..f.shape()[1] {
+            result[[yi,xi]] = (1.0 / 60.0) * (2.0 * f[[yi, index_periodic(xi as isize - 2, N)]] 
+                                           - 13.0 * f[[yi, index_periodic(xi as isize - 1, N)]] 
+                                           + 47.0 * f[[yi, index_periodic(xi as isize    , N)]] 
+                                           + 27.0 * f[[yi, index_periodic(xi as isize + 1, N)]] 
+                                           -  3.0 * f[[yi, index_periodic(xi as isize + 2, N)]])
+        };
+    };
+    result
+}
+
+fn fmx_imh(f: Array2<f64>, N: isize) -> Array2<f64> {
+    let mut result = Array2::<f64>::zeros((N as usize,N as usize).f());
+    for yi in 0..f.shape()[0] {
+        for xi in 0..f.shape()[1] {
+            result[[yi,xi]] = (1.0 / 60.0) * (2.0 * f[[yi, index_periodic(xi as isize + 2, N)]]
+                                           - 13.0 * f[[yi, index_periodic(xi as isize + 1, N)]]
+                                           + 47.0 * f[[yi, index_periodic(xi as isize    , N)]]
+                                           + 27.0 * f[[yi, index_periodic(xi as isize - 1, N)]]
+                                           -  3.0 * f[[yi, index_periodic(xi as isize - 2, N)]])
+        };
+    };
+    result
+}
+
+fn fpy_iph(f: Array2<f64>, N: isize) -> Array2<f64> {
+    let mut result = Array2::<f64>::zeros((N as usize,N as usize).f());
+    for yi in 0..f.shape()[0] {
+        for xi in 0..f.shape()[1] {
+            result[[yi,xi]] = (1.0 / 60.0) * (2.0 * f[[index_periodic(yi as isize - 2, N), yi]]
+                                           - 13.0 * f[[index_periodic(yi as isize - 1, N), yi]]
+                                           + 47.0 * f[[index_periodic(yi as isize    , N), yi]]
+                                           + 27.0 * f[[index_periodic(yi as isize + 1, N), yi]]
+                                           -  3.0 * f[[index_periodic(yi as isize + 2, N), yi]])
+        };
+    };
+    result
+}
+
+fn fmy_imh(f: Array2<f64>, N: isize) -> Array2<f64> {
+    let mut result = Array2::<f64>::zeros((N as usize,N as usize).f());
+    for yi in 0..f.shape()[0] {
+        for xi in 0..f.shape()[1] {
+            result[[yi,xi]] = (1.0 / 60.0) * (2.0 * f[[index_periodic(yi as isize + 2, N), yi]]
+                                           - 13.0 * f[[index_periodic(yi as isize + 1, N), yi]]
+                                           + 47.0 * f[[index_periodic(yi as isize    , N), yi]]
+                                           + 27.0 * f[[index_periodic(yi as isize - 1, N), yi]]
+                                           -  3.0 * f[[index_periodic(yi as isize - 2, N), yi]])
+        };
+    };
+    result
+}
 
 fn main() {
+    let N: isize = 4;
     let dx = 0.1;
-    let yy = Array::from_shape_fn((4, 4), |(i,_j)| (i as f64) * dx - 3.0 * dx / 2.0);
-    let xx = Array::from_shape_fn((4, 4), |(i,_j)| (i as f64) * dx - 3.0 * dx / 2.0);
+    let xx = Array::from_shape_fn((N as usize, N as usize), |(_i, j)| (j as f64) * dx - ((N as f64) - 1.0) * dx / 2.0);
+    let yy =-Array::from_shape_fn((N as usize, N as usize), |( i,_j)| (i as f64) * dx - ((N as f64) - 1.0) * dx / 2.0);
     let rr = (&xx * &xx + &yy * &yy).mapv(|a| a.powf(0.5));
-    println!("{:?}", xx);
-    println!("{:?}", yy);
+    println!("{:?}", xx.slice(s![0,..]));
+    println!("{:?}", yy.slice(s![..,0]));
     println!("{:?}", rr);
+    fpx_iph(rr, N);
 
 }
 
