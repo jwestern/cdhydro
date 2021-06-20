@@ -1,7 +1,13 @@
+#![allow(non_snake_case)]
 use ndarray::prelude::*;
 use ndarray::stack;
 use ndarray_npy::{read_npy, write_npy, NpzWriter, NpzReader};
 use std::fs::File;
+
+const KAPPA: f64 = 100.0; // eos par
+const GAMMA: f64 = 2.0;   // eos par
+const AGP: f64   = 0.0;   // "a" in generalized polytrope
+const NP: f64    = 1.0 / (GAMMA - 1.0); // eos par
 
 fn index_periodic(i: isize, N: isize) -> usize {
     if i > N-1 {
@@ -69,9 +75,66 @@ fn fmy_imh(f: Array2<f64>, N: isize) -> Array2<f64> {
     result
 }
 
+fn rootdet(gxx: &Array2<f64>, gxy: &Array2<f64>, gyy: &Array2<f64>) -> Array2<f64> {
+    (gxx*gyy - gxy*gxy).mapv(|a| a.sqrt())
+}
+
+#[derive(Clone, Debug)]
+struct Primitive(Array2::<f64>,Array2::<f64>,Array2::<f64>);
+#[derive(Clone, Debug)]
+struct Conserved(Array2::<f64>,Array2::<f64>,Array2::<f64>);
+
+impl Primitive {
+    fn enthalpy(self) -> Array2::<f64> { self.clone().0 }
+    fn vx(      self) -> Array2::<f64> { self.clone().1 }
+    fn vy(      self) -> Array2::<f64> { self.clone().2 }
+    fn mass_density(self) -> Array2::<f64> {
+        ((self.clone().enthalpy() - 1.0 + AGP) / (KAPPA * (1.0 + NP))).mapv(|a| a.powf(NP))
+    }
+    fn pressure(self) -> Array2::<f64> {
+        KAPPA * self.clone().mass_density().mapv(|a| a.powf(GAMMA)) // Update with equation of state
+    }
+    fn sound_speed(self) -> Array2::<f64> {
+        let drhoh = (KAPPA * GAMMA) * self.clone().mass_density().mapv(|a| a.powf(GAMMA - 2.0));
+        let cs2 = self.clone().mass_density() / self.clone().enthalpy() * drhoh;
+        cs2.mapv(|a| a.sqrt())
+    }
+    fn eigenval_x_p(self) -> Array2::<f64> {
+        self.clone().vx() + self.clone().pressure() // Update these
+    }
+    fn eigenval_x_m(self) -> Array2::<f64> {
+        self.clone().vx() - self.clone().pressure()
+    }
+    fn eigenval_y_p(self) -> Array2::<f64> {
+        self.clone().vy() + self.clone().pressure()
+    }
+    fn eigenval_y_m(self) -> Array2::<f64> {
+        self.clone().vy() - self.clone().pressure()
+    }
+    fn max_signal_speed(self) -> f64 {
+        1.0
+    }
+    fn lorentz(self, gxx: &Array2<f64>, gxy: &Array2<f64>, gyy: &Array2<f64>) -> Array2::<f64> {
+        let vx = &self.clone().vx();
+        let vy = &self.clone().vy();
+        let v2 = gxx*vx*vx + 2.0 * gxy*vx*vy + gyy*vy*vy;
+        (1.0 - v2).mapv(|a| a.sqrt())
+    }
+    fn primtocon(self, gxx: Array2<f64>, gxy: Array2<f64>, gyy: Array2<f64>) -> Conserved {
+        let W = &self.clone().lorentz(&gxx, &gxy, &gyy);
+        let rho = &self.clone().mass_density();
+        let vx  = &self.clone().vx();
+        let vy  = &self.clone().vy();
+        let h   = &self.clone().enthalpy();
+        let rdet= &rootdet(&gxx, &gxy, &gyy);
+        Conserved(rdet*rho*W, rdet*rho*W*W*vx, rdet*rho*W*W*vy)
+    }
+}
+
 fn main() {
+    let L = 1.0;
     let N: isize = 4;
-    let dx = 0.1;
+    let dx = L/(N as f64);
     let xx = Array::from_shape_fn((N as usize, N as usize), |(_i, j)| (j as f64) * dx - ((N as f64) - 1.0) * dx / 2.0);
     let yy =-Array::from_shape_fn((N as usize, N as usize), |( i,_j)| (i as f64) * dx - ((N as f64) - 1.0) * dx / 2.0);
     let rr = (&xx * &xx + &yy * &yy).mapv(|a| a.powf(0.5));
